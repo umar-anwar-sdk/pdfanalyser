@@ -1,0 +1,162 @@
+<h2>PDF Comparison Dashboard</h2>
+
+<div style="margin-bottom: 20px; padding: 12px; background-color: #f5faff; border: 1px solid #cce3ff; border-radius: 8px;">
+    <p><strong>Base Document:</strong> {{ comparison.base_pdf.name }}</p>
+    <p><strong>New Document:</strong> {{ comparison.new_pdf.name }}</p>
+    <p><strong>Compared At:</strong> {{ comparison.created_at }}</p>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px;">
+    <div style="padding: 16px; background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px;">
+        <h3>Total Records Changed</h3>
+        <p style="font-size: 2rem; margin: 0;">{{ comparison.summary.total_records_changed }}</p>
+    </div>
+    <div style="padding: 16px; background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px;">
+        <h3>New Records</h3>
+        <p style="font-size: 2rem; margin: 0;">{{ comparison.summary.new_records }}</p>
+    </div>
+    <div style="padding: 16px; background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px;">
+        <h3>Removed Records</h3>
+        <p style="font-size: 2rem; margin: 0;">{{ comparison.summary.removed_records }}</p>
+    </div>
+    <div style="padding: 16px; background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px;">
+        <h3>Updated Records</h3>
+        <p style="font-size: 2rem; margin: 0;">{{ comparison.summary.updated_records }}</p>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 24px;">
+    <div style="padding: 16px; background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px;">
+        <h3>Change Breakdown</h3>
+        <ul style="padding-left: 20px; margin: 0;">
+            <li>Added: <strong>{{ comparison.summary.new_records }}</strong></li>
+            <li>Removed: <strong>{{ comparison.summary.removed_records }}</strong></li>
+            <li>Updated: <strong>{{ comparison.summary.updated_records }}</strong></li>
+        </ul>
+    </div>
+    <div style="padding: 16px; background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px;">
+        <h3>Record Totals</h3>
+        <ul style="padding-left: 20px; margin: 0;">
+            <li>Base PDF Records: <strong>{{ comparison.summary.base_records }}</strong></li>
+            <li>New PDF Records: <strong>{{ comparison.summary.new_records_total }}</strong></li>
+        </ul>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 24px;">
+    <div style="background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px; padding: 16px;">
+        <h3 style="margin-top: 0;">Changes by Type</h3>
+        <canvas id="changeChart" width="400" height="300"></canvas>
+    </div>
+    <div style="background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px; padding: 16px;">
+        <h3 style="margin-top: 0;">Record Counts</h3>
+        <canvas id="recordChart" width="400" height="300"></canvas>
+    </div>
+</div>
+
+<div style="display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 24px;">
+    <div style="flex: 1 1 320px; min-width: 320px; background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px; padding: 16px;">
+        <h3>Added Records</h3>
+        {% if added_changes %}
+            <ul>
+                {% for item in added_changes %}
+                    <li><strong>{{ item.symbol }}</strong> — {{ item.name }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No new records detected.</p>
+        {% endif %}
+    </div>
+    <div style="flex: 1 1 320px; min-width: 320px; background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px; padding: 16px;">
+        <h3>Removed Records</h3>
+        {% if removed_changes %}
+            <ul>
+                {% for item in removed_changes %}
+                    <li><strong>{{ item.symbol }}</strong> — {{ item.name }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No removed records detected.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div style="background: #ffffff; border: 1px solid #d9e8ff; border-radius: 8px; padding: 16px;">
+    <h3>Modified Records</h3>
+    {% if modified_changes %}
+        <table border="1" cellpadding="8" cellspacing="0" style="width: 100%; border-collapse: collapse;">
+            <tr style="background: #eef6ff;">
+                <th>Record</th>
+                <th>Field</th>
+                <th>Old</th>
+                <th>New</th>
+            </tr>
+            {% for item in modified_changes %}
+                {% for field, diff in item.diff.items %}
+                    <tr>
+                        <td>{{ item.symbol }}{% if item.name %} — {{ item.name }}{% endif %}</td>
+                        <td>{{ field }}</td>
+                        <td>{{ diff.old }}</td>
+                        <td>{{ diff.new }}</td>
+                    </tr>
+                {% endfor %}
+            {% endfor %}
+        </table>
+    {% else %}
+        <p>No modified records found.</p>
+    {% endif %}
+</div>
+
+<div style="margin-top: 24px;">
+    <a href="{% url 'parsed_data' pdf_id=comparison.new_pdf.id %}" style="text-decoration: none; color: #1a3d7c;">Back to parsed data for {{ comparison.new_pdf.name }}</a>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const changeCtx = document.getElementById('changeChart');
+    const recordCtx = document.getElementById('recordChart');
+
+    if (changeCtx) {
+        new Chart(changeCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Added', 'Removed', 'Updated'],
+                datasets: [{
+                    data: [
+                        {{ comparison.summary.new_records }},
+                        {{ comparison.summary.removed_records }},
+                        {{ comparison.summary.updated_records }}
+                    ],
+                    backgroundColor: ['#4caf50', '#f44336', '#ff9800'],
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    if (recordCtx) {
+        new Chart(recordCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Base Records', 'New Records'],
+                datasets: [{
+                    label: 'Record Count',
+                    data: [{{ comparison.summary.base_records }}, {{ comparison.summary.new_records_total }}],
+                    backgroundColor: ['#2196f3', '#3f51b5'],
+                }]
+            },
+            options: {
+                scales: {
+                    y: { beginAtZero: true }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+</script>

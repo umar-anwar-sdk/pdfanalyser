@@ -1,0 +1,85 @@
+<h2>Parsed Data for: {{ pdf.name }}</h2>
+
+<div style="margin-bottom: 20px; padding: 10px; background-color: #f0f0f0; border-radius: 5px;">
+    <p><strong>Status:</strong> 
+        {% if pdf.is_processed %}
+            ✅ Processed
+        {% else %}
+            ⏳ Processing... Please wait or refresh the page.
+        {% endif %}
+    </p>
+    {% if pdf.processed_at %}
+        <p><strong>Processed At:</strong> {{ pdf.processed_at }}</p>
+    {% endif %}
+    {% if pdf.report_date %}
+        <p><strong>Report Date:</strong> {{ pdf.report_date }} {{ pdf.report_time }}</p>
+    {% endif %}
+</div>
+
+{% if processing_error %}
+    <div style="color: red; background-color: #ffe0e0; padding: 10px; border: 1px solid red; border-radius: 5px; margin-bottom: 20px;">
+        <strong>Error during processing:</strong>
+        <p>{{ processing_error }}</p>
+    </div>
+{% endif %}
+
+{% if rows %}
+    <table border="1" style="width: 100%; border-collapse: collapse;">
+        <tr style="background-color: #ddd;">
+            <th>SR</th>
+            <th>Symbol</th>
+            <th>Name</th>
+            <th>Sector</th>
+            <th>Price</th>
+            <th>Change</th>
+            <th>Change %</th>
+            <th>Volume</th>
+            <th>Trend</th>
+        </tr>
+
+        {% for row in rows %}
+        <tr>
+            <td>{{ row.row_data.sr }}</td>
+            <td>{{ row.row_data.symbol }}</td>
+            <td>{{ row.row_data.name }}</td>
+            <td>{{ row.row_data.sector }}</td>
+            <td>{{ row.row_data.price }}</td>
+            <td>{{ row.row_data.change }}</td>
+            <td>{{ row.row_data.change_percent }}</td>
+            <td>{{ row.row_data.volume }}</td>
+            <td>{{ row.row_data.trend }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <p style="margin-top: 20px;">Total Records: <strong>{{ rows|length }}</strong></p>
+{% else %}
+    {% if pdf.is_processed %}
+        <p style="color: orange;">No data found in the PDF. Please check if the PDF contains the expected table format.</p>
+    {% else %}
+        <p style="color: blue;">Processing PDF... Please wait and refresh the page in a few moments.</p>
+    {% endif %}
+{% endif %}
+
+{% if latest_comparison_as_new or latest_comparison_as_base %}
+    <div style="margin-top: 20px; padding: 15px; background-color: #eef8ff; border: 1px solid #c5e0ff; border-radius: 8px;">
+        <h3 style="margin-top: 0;">Comparison Snapshot</h3>
+        {% if latest_comparison_as_new %}
+            <p>Latest comparison against a previous version:</p>
+            <p><strong>{{ latest_comparison_as_new.base_pdf.name }}</strong> → <strong>{{ latest_comparison_as_new.new_pdf.name }}</strong></p>
+            <p><a href="{% url 'comparison_detail' comparison_id=latest_comparison_as_new.id %}">View comparison dashboard</a></p>
+        {% elif latest_comparison_as_base %}
+            <p>Latest comparison where this document was the base version:</p>
+            <p><strong>{{ latest_comparison_as_base.base_pdf.name }}</strong> → <strong>{{ latest_comparison_as_base.new_pdf.name }}</strong></p>
+            <p><a href="{% url 'comparison_detail' comparison_id=latest_comparison_as_base.id %}">View comparison dashboard</a></p>
+        {% endif %}
+    </div>
+{% endif %}
+
+<div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ccc; display: flex; flex-wrap: wrap; gap: 20px;">
+    <a href="{% url 'upload_pdf' %}" style="text-decoration: none; color: #1a3d7c;">Upload Another PDF</a>
+    {% if latest_comparison_as_new %}
+        <a href="{% url 'comparison_detail' comparison_id=latest_comparison_as_new.id %}" style="text-decoration: none; color: #1a3d7c;">View Comparison Dashboard</a>
+    {% elif latest_comparison_as_base %}
+        <a href="{% url 'comparison_detail' comparison_id=latest_comparison_as_base.id %}" style="text-decoration: none; color: #1a3d7c;">View Comparison Dashboard</a>
+    {% endif %}
+</div>
